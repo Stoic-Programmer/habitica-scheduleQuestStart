@@ -378,10 +378,11 @@ function messageParty(party, habId, habToken) {
 
         response = UrlFetchApp.fetch("https://habitica.com/api/v3/members/send-private-message", postParamsTemplate);
         header = buildHeader(response);
+        console.log(header);
         if (header.remaining <= 2) {
           console.warn("Reached rate limit.  Pausing until: " + header.reset);
           let now = new Date();
-          let delay = header.reset.getMilliseconds() - now.getMilliseconds();
+          let delay = header.reset.getMilliseconds() - now.getMilliseconds() + 2000;
           Utilities.sleep(delay);
         }
       }
