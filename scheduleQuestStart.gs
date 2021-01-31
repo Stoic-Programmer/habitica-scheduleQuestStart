@@ -39,8 +39,6 @@ function scheduleQuestStart() {
   const habToken = scriptProperties.getProperty("TOKEN"); // Your Habitica API key token
 
   let party = fetchPartyData(habId, habToken);
-  //  updateParty(party);
-  //  return;
 
   // If there is a quest already active, there's nothing to do.
   // Last mod 15/10/2018: if it's inactive we might be sending a PM (see below)
@@ -180,7 +178,7 @@ function updateOptIn(sheet, members) {
   range.setValues(values);
   sheet.autoResizeColumns(1, 4);
 
-  let SORT_RANGE = "A2:D"+members.length;
+  let SORT_RANGE = "A2:D" + members.length;
   let SORT_ORDER = [
     { column: 1, ascending: true },
     { column: 2, ascending: true },
@@ -314,7 +312,13 @@ function fetchAllPartyMembers(getParams) {
   party.data.forEach(collectMember);
 
   function collectMember(m) {
-    var data = { "id": m.id, "username": m.auth.local.username, "name": m.profile.name, "processed": false, "message": false };
+    var data = {
+      "id": m.id,
+      "username": m.auth.local.username,
+      "name": m.profile.name,
+      "processed": false,
+      "message": false
+    };
     members.push(data);
   }
 
@@ -412,9 +416,9 @@ function forceQuestStart(quest, previousQuestLog, waitingTime, habId, habToken) 
   startTime.setHours(startTime.getHours() + waitingTime);
   if (now >= startTime) {
     console.warn("Force-starting the quest...:" + previousQuestLog.key);
-    //urlRequest = "https://habitica.com/api/v3/groups/party/quests/force-start";
-    //let response = UrlFetchApp.fetch(urlRequest, postParamsTemplate);
-    //header = buildHeader(response);
+    urlRequest = "https://habitica.com/api/v3/groups/party/quests/force-start";
+    let response = UrlFetchApp.fetch(urlRequest, postParamsTemplate);
+    header = buildHeader(response);
   } else {
     console.log("Waiting for starting time for quest " + quest.key + "... " + startTime);
   }
