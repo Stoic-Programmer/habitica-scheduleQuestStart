@@ -39,8 +39,8 @@ function scheduleQuestStart() {
   const habToken = scriptProperties.getProperty("TOKEN"); // Your Habitica API key token
 
   let party = fetchPartyData(habId, habToken);
-//  updateParty(party);
-//  return;
+  //  updateParty(party);
+  //  return;
 
   // If there is a quest already active, there's nothing to do.
   // Last mod 15/10/2018: if it's inactive we might be sending a PM (see below)
@@ -179,8 +179,20 @@ function updateOptIn(sheet, members) {
 
   range.setValues(values);
   sheet.autoResizeColumns(1, 4);
-  sheet.hideColumns(COLUMN.NAME+1);
-  sheet.hideColumns(COLUMN.ID+1);
+
+  let SORT_RANGE = "A2:D"+members.length;
+  let SORT_ORDER = [
+    { column: 1, ascending: true },
+    { column: 2, ascending: true },
+    { column: 3, ascending: true },
+    { column: 4, ascending: true }
+  ];
+
+  let sortRange = sheet.getRange(SORT_RANGE);
+  sortRange.sort(SORT_ORDER);
+
+  sheet.hideColumns(COLUMN.NAME + 1);
+  sheet.hideColumns(COLUMN.ID + 1);
 }
 
 
