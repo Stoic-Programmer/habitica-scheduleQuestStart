@@ -25,6 +25,7 @@
 // 2021.01.30: (Raifton) Moved sensitve habitica token and user id up into script properties to permit posting to GitHub.
 //
 
+const AUTHOR_ID = "ebded617-5b88-4f67-9775-6c89ac45014f"; // Rafton on Habitica's user id fpr the x-client header parameter.
 const GUEST_LOG = "Habitica-scheduleQuestStart.log";
 const TRACKING = "HK Tracking";
 const OPT_IN = "Opt-In";
@@ -38,6 +39,8 @@ function scheduleQuestStart() {
   const habToken = scriptProperties.getProperty("TOKEN"); // Your Habitica API key token
 
   let party = fetchPartyData(habId, habToken);
+//  updateParty(party);
+//  return;
 
   // If there is a quest already active, there's nothing to do.
   // Last mod 15/10/2018: if it's inactive we might be sending a PM (see below)
@@ -176,6 +179,8 @@ function updateOptIn(sheet, members) {
 
   range.setValues(values);
   sheet.autoResizeColumns(1, 4);
+  sheet.hideColumns(COLUMN.NAME+1);
+  sheet.hideColumns(COLUMN.ID+1);
 }
 
 
@@ -247,7 +252,8 @@ function fetchPartyData(habId, habToken) {
     "method": "get",
     "headers": {
       "x-api-user": habId,
-      "x-api-key": habToken
+      "x-api-key": habToken,
+      "x-client": AUTHOR_ID + "-scheduleQuestStart"
     }
   };
 
@@ -317,19 +323,21 @@ function messageParty(party, habId, habToken) {
     "If you don't want to recieve this message any more please " +
     "clear your opt-in cell on the Opt-In tab of the party spreadsheet.";
 
-    var getParamsTemplate = {
-      "method" : "get",
-      "headers" : {
-        "x-api-user" : habId,
-        "x-api-key" : habToken
-      }
-    }    
+  var getParamsTemplate = {
+    "method": "get",
+    "headers": {
+      "x-api-user": habId,
+      "x-api-key": habToken,
+      "x-client": AUTHOR_ID + "-scheduleQuestStart"
+    }
+  }
 
   let postParamsTemplate = {
     "method": "post",
     "headers": {
       "x-api-user": habId,
-      "x-api-key": habToken
+      "x-api-key": habToken,
+      "x-client": AUTHOR_ID + "-scheduleQuestStart"
     }
   }
 
@@ -359,7 +367,7 @@ function messageParty(party, habId, habToken) {
         response = UrlFetchApp.fetch("https://habitica.com/api/v3/members/send-private-message", postParamsTemplate);
         header = buildHeader(response);
         if (header.remaining <= 2) {
-          console.warn("Reached rate limit.  Pausing until: "+ header.reset);
+          console.warn("Reached rate limit.  Pausing until: " + header.reset);
           let now = new Date();
           let delay = header.reset.getMilliseconds() - now.getMilliseconds();
           Utilities.sleep(delay);
@@ -380,7 +388,8 @@ function forceQuestStart(quest, previousQuestLog, waitingTime, habId, habToken) 
     "method": "post",
     "headers": {
       "x-api-user": habId,
-      "x-api-key": habToken
+      "x-api-key": habToken,
+      "x-client": AUTHOR_ID + "-scheduleQuestStart"
     }
   };
 
