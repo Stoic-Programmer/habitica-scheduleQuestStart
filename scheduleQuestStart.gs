@@ -25,8 +25,8 @@
 // 2021.01.30: (Raifton) Moved sensitve habitica token and user id up into script properties to permit posting to GitHub.
 //
 
-const AUTHOR_ID = "ebded617-5b88-4f67-9775-6c89ac45014f"; // Rafton on Habitica's user id fpr the x-client header parameter.
-const GUEST_LOG = "Habitica-scheduleQuestStart.log";
+const AUTHOR_ID = "ebded617-5b88-4f67-9775-6c89ac45014f"; // Rafton on Habitica's user id for the x-client header parameter.
+const QUEST_LOG = "Habitica-scheduleQuestStart.log";
 const TRACKING = "HK Tracking";
 const OPT_IN = "Opt-In";
 const HOURS_TO_WAIT = 4; // Wait 4 hours before forcing quest start.
@@ -48,7 +48,7 @@ function scheduleQuestStart() {
   }
 
   // parse file for quest id and start time that was recorded.
-  let file = loadFile(GUEST_LOG, true);
+  let file = loadFile(QUEST_LOG, true);
   let previousQuestLog = readDataLog(file);
 
   // If this is the first time there's no quest going on, send a PM to everybody.
