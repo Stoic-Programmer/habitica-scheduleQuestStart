@@ -23,6 +23,7 @@
 // 2020.12.24: (Raifton) Improved the rate limiting logic to handle the response headers.
 // 2021.01.30: (Raifton) Added logic to read from an opt-in list on a google sheet of party members to send messages.
 // 2021.01.30: (Raifton) Moved sensitve habitica token and user id up into script properties to permit posting to GitHub.
+// 2021.02.10: (Raifton) Fixed a bug in how rate limits were handled.  JSON dates need to be converted to a Date.
 //
 
 const AUTHOR_ID = "ebded617-5b88-4f67-9775-6c89ac45014f"; // Rafton on Habitica's user id for the x-client header parameter.
@@ -382,16 +383,18 @@ function messageParty(party, habId, habToken) {
 
         response = UrlFetchApp.fetch("https://habitica.com/api/v3/members/send-private-message", postParamsTemplate);
         header = buildHeader(response);
-        console.log(header);
-        if (header.remaining <= 2) {
-          console.warn("Reached rate limit.  Pausing until: " + header.reset);
+        // Debuggin purposes.  Following line can be commented out if the script is running well.
+        console.trace("api response: " + header.code + ", remain: " + header.remain);
+
+        // Inspects the response from the API call and determines we we need to sleep untill the next reset.
+        if (header.remain <= 2) {
           let now = new Date();
-          let delay = header.reset.getMilliseconds() - now.getMilliseconds() + 2000;
+          let delay = header.wakeup.getTime() - now.getTime() + 1000;
+          console.warn("Reached rate limit.  Pausing for : " + delay + "ms, wakeup @ " + header.wakeup);
           Utilities.sleep(delay);
         }
       }
     }
-
   }
 }
 
@@ -412,8 +415,8 @@ function forceQuestStart(quest, previousQuestLog, waitingTime, habId, habToken) 
 
   // If this is an OLD inactive quest, then check if we need to force-start it.
   const now = new Date();
-  let startTime = previousQuestLog.date;
-  startTime.setHours(startTime.getHours() + waitingTime);
+  const hours = waitingTime * 60 * 60 * 1000; // convert to millis.
+  let startTime = new Date(previousQuestLog.date + hours);
   if (now >= startTime) {
     console.warn("Force-starting the quest...:" + previousQuestLog.key);
     urlRequest = "https://habitica.com/api/v3/groups/party/quests/force-start";
@@ -433,10 +436,28 @@ function forceQuestStart(quest, previousQuestLog, waitingTime, habId, habToken) 
  * wait a short bit before sending again.
  */
 function buildHeader(response) {
-  var head = response.getHeaders();
+  if (response === undefined) {
+    return {
+      "limit": "",
+      "remain": "",
+      "wakeup": "",
+      "code": "",
+      "data": ""
+    };
+  }
+
+  let headers = response.getHeaders();
+  let content = JSON.parse(response);
+  let limit = headers['x-ratelimit-limit'];
+  let remain = headers['x-ratelimit-remaining'];
+  let wakeupTime = headers['x-ratelimit-reset'];
+  let code = response.getResponseCode();
+  let wakeupDate = new Date(wakeupTime);
   return {
-    "limit": head['x-ratelimit-limit'],
-    "remaining": head['x-ratelimit-remaining'],
-    "reset": head['x-ratelimit-reset']
+    "limit": limit,
+    "remain": remain,
+    "wakeup": wakeupDate,
+    "code": code,
+    "data": content
   };
 }
