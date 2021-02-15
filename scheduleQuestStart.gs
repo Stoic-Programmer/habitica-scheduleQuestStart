@@ -5,10 +5,10 @@
 // wait between sending the invites and starting the quest.
 //
 // Two "Script Properties" need to be set before running.  Both the Habitica UserID and Token
-// are now expected to be stored in the script properties: USER_ID and TOKEN respectively.
+// are now expected to be stored in the script properties: LEADER_ID, LEADER_TOKEN, BOT_ID, BOT_TOKEN.
 // In the classic Google Script editor select File -> Project Properties -> Script Properties.
 // Once the "Project Properties" dialog box is open and on the "Script Properties" tab create
-// an entry each for USER_ID and TOKEN setting the value appropriately for your Habitica account.
+// an entry each setting the value appropriately for your Habitica accounts.
 //
 // A scheduler should be set to run scheduleQuestStart every X minutes (10-15 min ideal)
 // 
@@ -24,6 +24,7 @@
 // 2021.01.30: (Raifton) Added logic to read from an opt-in list on a google sheet of party members to send messages.
 // 2021.01.30: (Raifton) Moved sensitve habitica token and user id up into script properties to permit posting to GitHub.
 // 2021.02.10: (Raifton) Fixed a bug in how rate limits were handled.  JSON dates need to be converted to a Date.
+// 2021.02.15: (Raifton) Add back the party bot user for quest messaging.
 //
 
 const AUTHOR_ID = "ebded617-5b88-4f67-9775-6c89ac45014f"; // Rafton on Habitica's user id for the x-client header parameter.
@@ -36,10 +37,21 @@ const COLUMN = { USER: 0, NAME: 1, ID: 2, OPTIN: 3 };
 
 function scheduleQuestStart() {
   const scriptProperties = PropertiesService.getScriptProperties();
-  const habId = scriptProperties.getProperty("USER_ID"); // Your Habitica API user ID - (party leader)
-  const habToken = scriptProperties.getProperty("TOKEN"); // Your Habitica API key token
+  
+  // Use the "Legacy Editor" in Google Scripts:  
+  //    "File" -> "Project Properties" then select the "Script Properties" tab and add four entires; one for each property.
+  //    LEADER_ID - assign the habitica party leader's id to this property.
+  //    LEADER_TOKEN - assign the habitica party leader's api token to this property.
+  //    BOT_ID - assign the habitica party bot's id to this property.
+  //    BOT_TOKEN - assign the habitica party bot's api token to this property.
+  
+  const partyLeaderId = scriptProperties.getProperty("LEADER_ID"); // Habitica API user ID - (party leader)
+  const partyLeaderToken = scriptProperties.getProperty("LEADER_TOKEN"); //  Habitica API key token (leader)
+  
+  const partyBotId = scriptProperties.getProperty("BOT_ID"); // Habitica API user ID - (party bot)
+  const partyBotToken = scriptProperties.getProperty("BOT_TOKEN"); // Habitica API key token (bot)
 
-  let party = fetchPartyData(habId, habToken);
+  let party = fetchPartyData(partyLeaderId, partyLeaderToken);
 
   // If there is a quest already active, there's nothing to do.
   // Last mod 15/10/2018: if it's inactive we might be sending a PM (see below)
@@ -57,7 +69,7 @@ function scheduleQuestStart() {
     console.info("No quest is currently active.");
     if (previousQuestLog.key !== "undefined" && previousQuestLog.key !== null) {
       party = updateParty(party);
-      messageParty(party, habId, habToken);
+      messageParty(party, partyBotId, partyBotToken);
 
       // Update file so that we won't send the PM on the next trigger.
       file.setContent(party.questLog);
@@ -72,7 +84,7 @@ function scheduleQuestStart() {
     return;
   }
 
-  forceQuestStart(party.quest, previousQuestLog, HOURS_TO_WAIT, habId, habToken);
+  forceQuestStart(party.quest, previousQuestLog, HOURS_TO_WAIT, partyLeaderId, partyLeaderToken);
   console.info("completed scheduleQuestStart...");
 }
 
