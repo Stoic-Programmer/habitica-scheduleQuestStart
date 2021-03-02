@@ -25,12 +25,13 @@
 // 2021.01.30: (Raifton) Moved sensitve habitica token and user id up into script properties to permit posting to GitHub.
 // 2021.02.10: (Raifton) Fixed a bug in how rate limits were handled.  JSON dates need to be converted to a Date.
 // 2021.02.15: (Raifton) Add back the party bot user for quest messaging.
+// 2021.03.02: (AyrenneA) Updated to use new Spread Sheet and tab name.
 //
 
 const AUTHOR_ID = "ebded617-5b88-4f67-9775-6c89ac45014f"; // Rafton on Habitica's user id for the x-client header parameter.
 const QUEST_LOG = "Habitica-scheduleQuestStart.log";
-const TRACKING = "HK Tracking";
-const OPT_IN = "Opt-In";
+const TRACKING = "HK & HK2 Tracking";
+const OPT_IN = "HK Opt-In";
 const HOURS_TO_WAIT = 4; // Wait 4 hours before forcing quest start.
 
 const COLUMN = { USER: 0, NAME: 1, ID: 2, OPTIN: 3 };
@@ -89,10 +90,10 @@ function scheduleQuestStart() {
 }
 
 /**
- * Read the Opt-in tab for a list of members that may want
+ * Read the HK Opt-in tab for a list of members that may want
  * notifications.  Merge this date with the active party members.
- * The merged list is re written out to the Opt-In tab.
- * If member leave and join this keeps the list on the Opt-In 
+ * The merged list is re written out to the HK Opt-In tab.
+ * If member leave and join this keeps the list on the HK Opt-In 
  * tab updated.
  * 
  * returns a copy of the given party with a member list update with opt-in
@@ -120,7 +121,7 @@ function mergeMembers(membersOptIn, partyMembers) {
 
   membersOptIn.forEach(processPartyMember);
 
-  // Ensure the send meddage field it correctly assigned from the Opt-in page.
+  // Ensure the send message field it correctly assigned from the Opt-in page.
   // Sending PMs is disabled by default and a use must opt-in by the opt-in page.
   function processPartyMember(m) {
     let found = false;
@@ -138,7 +139,7 @@ function mergeMembers(membersOptIn, partyMembers) {
 
 /**
  * Parse the member data on the Opt-In page
- * and palce it into an internal structure
+ * and place it into an internal structure
  * for further processing.
  */
 function readOptIn(sheet) {
@@ -310,7 +311,7 @@ function fetchQuest(getParams) {
 
 /**
  * Grabs the current list of party members.  This is the
- * authoritative list regardless of the members listed on the Opt-In
+ * authoritative list regardless of the members listed on the HK Opt-In
  * page.  The opt-in page is used for user to sign up for messages if desired.
  * Users that have left will be replaced when the page refreshes with the 
  * authoritative list here.
@@ -348,9 +349,9 @@ function messageParty(party, habId, habToken) {
   let header = party.header;
   let members = party.members;
 
-  const message = "The quest is over. You can launch a new quest now." +
+  const message = "The quest is over. You may launch a new quest now. " +
     "If you don't want to recieve this message any more please " +
-    "clear your opt-in cell on the Opt-In tab of the party spreadsheet.";
+    "clear your opt-in cell on the HK Opt-In tab of the Party spreadsheet.";
 
   var getParamsTemplate = {
     "method": "get",
@@ -396,9 +397,9 @@ function messageParty(party, habId, habToken) {
         response = UrlFetchApp.fetch("https://habitica.com/api/v3/members/send-private-message", postParamsTemplate);
         header = buildHeader(response);
         // Debuggin purposes.  Following line can be commented out if the script is running well.
-        console.trace("api response: " + header.code + ", remain: " + header.remain);
+        // console.trace("api response: " + header.code + ", remain: " + header.remain);
 
-        // Inspects the response from the API call and determines we we need to sleep untill the next reset.
+        // Inspects the response from the API call and determines we we need to sleep until the next reset.
         if (header.remain <= 2) {
           let now = new Date();
           let delay = header.wakeup.getTime() - now.getTime() + 1000;
@@ -473,3 +474,4 @@ function buildHeader(response) {
     "data": content
   };
 }
+
