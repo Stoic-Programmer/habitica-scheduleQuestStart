@@ -4,7 +4,7 @@
 // Usage: Set HOURS_TO_WAIT variable if you need to update the time to
 // wait between sending the invites and starting the quest.
 //
-// Two "Script Properties" need to be set before running.  Both the Habitica UserID and Token
+// Four "Script Properties" need to be set before running.  Both the Habitica UserID and Token
 // are now expected to be stored in the script properties: LEADER_ID, LEADER_TOKEN, BOT_ID, BOT_TOKEN.
 // In the classic Google Script editor select File -> Project Properties -> Script Properties.
 // Once the "Project Properties" dialog box is open and on the "Script Properties" tab create
@@ -26,6 +26,8 @@
 // 2021.02.10: (Raifton) Fixed a bug in how rate limits were handled.  JSON dates need to be converted to a Date.
 // 2021.02.15: (Raifton) Add back the party bot user for quest messaging.
 // 2021.03.02: (AyrenneA) Updated to use new Spread Sheet and tab name.
+// 2031.03.02: (Raifton) Fixed quest start time handling (i.e. call getTime())
+// 2031.03.02: (Raifton) Improve the clear and update of the opt-in list, and moved the opt-in list further down the page.
 //
 
 const AUTHOR_ID = "ebded617-5b88-4f67-9775-6c89ac45014f"; // Rafton on Habitica's user id for the x-client header parameter.
@@ -34,21 +36,25 @@ const TRACKING = "HK & HK2 Tracking";
 const OPT_IN = "HK Opt-In";
 const HOURS_TO_WAIT = 4; // Wait 4 hours before forcing quest start.
 
+// Defines where the members are in the spreadsheet.  Including the header row.
+const MEMBER_ROW_START = 5;
+const MEMBER_COL_COUNT = 4;
+
 const COLUMN = { USER: 0, NAME: 1, ID: 2, OPTIN: 3 };
 
 function scheduleQuestStart() {
   const scriptProperties = PropertiesService.getScriptProperties();
-  
+
   // Use the "Legacy Editor" in Google Scripts:  
   //    "File" -> "Project Properties" then select the "Script Properties" tab and add four entires; one for each property.
   //    LEADER_ID - assign the habitica party leader's id to this property.
   //    LEADER_TOKEN - assign the habitica party leader's api token to this property.
   //    BOT_ID - assign the habitica party bot's id to this property.
   //    BOT_TOKEN - assign the habitica party bot's api token to this property.
-  
+
   const partyLeaderId = scriptProperties.getProperty("LEADER_ID"); // Habitica API user ID - (party leader)
   const partyLeaderToken = scriptProperties.getProperty("LEADER_TOKEN"); //  Habitica API key token (leader)
-  
+
   const partyBotId = scriptProperties.getProperty("BOT_ID"); // Habitica API user ID - (party bot)
   const partyBotToken = scriptProperties.getProperty("BOT_TOKEN"); // Habitica API key token (bot)
 
@@ -91,12 +97,12 @@ function scheduleQuestStart() {
 
 /**
  * Read the HK Opt-in tab for a list of members that may want
- * notifications.  Merge this date with the active party members.
+ * notifications.  Merge this data with the active party members.
  * The merged list is re written out to the HK Opt-In tab.
- * If member leave and join this keeps the list on the HK Opt-In 
+ * If members leave and join this keeps the list on the HK Opt-In 
  * tab updated.
  * 
- * returns a copy of the given party with a member list update with opt-in
+ * returns a copy of the given party with a member list updated with opt-in choice
  */
 function updateParty(party) {
   let file = loadFile(TRACKING);
@@ -118,7 +124,6 @@ function updateParty(party) {
 
 function mergeMembers(membersOptIn, partyMembers) {
   let members = partyMembers;
-
   membersOptIn.forEach(processPartyMember);
 
   // Ensure the send message field it correctly assigned from the Opt-in page.
@@ -133,6 +138,7 @@ function mergeMembers(membersOptIn, partyMembers) {
     }
   }
 
+  //console.log("Total members found: " + members.length);
   return members;
 }
 
@@ -145,8 +151,9 @@ function mergeMembers(membersOptIn, partyMembers) {
 function readOptIn(sheet) {
   let members = [];
   let rows = sheet.getDataRange().getValues();
-  if (rows.length > 1) {
-    for (let i = 1; i < rows.length; i++) {
+  if (rows.length > MEMBER_ROW_START) {
+    for (let i = MEMBER_ROW_START; i < rows.length; i++) {
+      //console.log("ROW[" + i + "]=" + rows[i]);
       collectMember(rows[i]);
     }
   }
@@ -161,18 +168,23 @@ function readOptIn(sheet) {
     };
     members.push(data);
   }
+  
   return members;
 }
 
 
 /**
- *  Update the opt-in page this the current list
- * of guild members.
+ *  Update the opt-in page this the current list of party members.
  */
 function updateOptIn(sheet, members) {
-  //clearSheet(sheet);
+  // Party Members may have left so clean up the extra rows.
+  let activeData = sheet.getDataRange().getValues();
+  if (activeData.length > (members.length + MEMBER_ROW_START)) {
+    activeData = sheet.getRange(MEMBER_ROW_START + members.length + 1, 1, activeData.length - MEMBER_ROW_START, MEMBER_COL_COUNT);
+    activeData.clearContent();
+  }
 
-  let range = sheet.getRange(1, 1, members.length + 1, 4);
+  let range = sheet.getRange(MEMBER_ROW_START, 1, members.length + MEMBER_ROW_START, MEMBER_COL_COUNT);
   let values = range.getValues();
   let row = values[0];
 
@@ -192,7 +204,8 @@ function updateOptIn(sheet, members) {
   range.setValues(values);
   sheet.autoResizeColumns(1, 4);
 
-  let SORT_RANGE = "A2:D" + members.length;
+  let SORT_ROW = MEMBER_ROW_START + 1;
+  let SORT_RANGE = "A" + SORT_ROW + ":D" + members.length;
   let SORT_ORDER = [
     { column: 1, ascending: true },
     { column: 2, ascending: true },
@@ -206,23 +219,6 @@ function updateOptIn(sheet, members) {
   sheet.hideColumns(COLUMN.NAME + 1);
   sheet.hideColumns(COLUMN.ID + 1);
 }
-
-
-/** 
- * This clears the active data range on a spreadsheet
- */
-// function clearSheet(sheet) {
-//   let data = sheet.getDataRange();
-//   let rows = data.getValues();
-//   rows.forEach(clearValue);
-//   function clearValue(r) {
-//     r[COLUMN.USER] = "";
-//     r[COLUMN.NAME] = "";
-//     r[COLUMN.ID] = "";
-//     r[COLUMN.OPTIN] = "";
-//   }
-//   data.setValues(rows);
-// }
 
 
 /**
@@ -377,7 +373,6 @@ function messageParty(party, habId, habToken) {
     "toUserId": undefined
   };
 
-
   for (var i = 0; i < members.length; i++) {
     if (members[i].message === true) {
       let memberID = members[i].id;
@@ -393,11 +388,10 @@ function messageParty(party, habId, habToken) {
       // If no objections then launch the message
       if (!(typeof arrayObjection !== 'undefined' && arrayObjection.length > 0)) {
         console.log("Sending PM to: " + members[i].username);
-
         response = UrlFetchApp.fetch("https://habitica.com/api/v3/members/send-private-message", postParamsTemplate);
         header = buildHeader(response);
-        // Debuggin purposes.  Following line can be commented out if the script is running well.
-        // console.trace("api response: " + header.code + ", remain: " + header.remain);
+        // Debugging purposes.  Following line can be commented out if the script is running well.
+        //console.log("api response: " + header.code + ", remain: " + header.remain);
 
         // Inspects the response from the API call and determines we we need to sleep until the next reset.
         if (header.remain <= 2) {
@@ -429,14 +423,14 @@ function forceQuestStart(quest, previousQuestLog, waitingTime, habId, habToken) 
   // If this is an OLD inactive quest, then check if we need to force-start it.
   const now = new Date();
   const hours = waitingTime * 60 * 60 * 1000; // convert to millis.
-  let startTime = new Date(previousQuestLog.date + hours);
-  if (now >= startTime) {
-    console.warn("Force-starting the quest...:" + previousQuestLog.key);
+  let startTime = new Date(previousQuestLog.date.getTime() + hours);
+  if (now.getTime() >= startTime.getTime()) {
+    console.warn("Force-starting the quest...:" + previousQuestLog.key + "  ... Initiated=[" + previousQuestLog.date + "], ForceTime=[" + startTime + "]");
     urlRequest = "https://habitica.com/api/v3/groups/party/quests/force-start";
     let response = UrlFetchApp.fetch(urlRequest, postParamsTemplate);
     header = buildHeader(response);
   } else {
-    console.log("Waiting for starting time for quest " + quest.key + "... " + startTime);
+    console.info("Waiting for starting time for quest " + quest.key + "... Initiated=[" + previousQuestLog.date + "], ForceTime=[" + startTime + "]");
   }
   return header;
 }
@@ -474,4 +468,3 @@ function buildHeader(response) {
     "data": content
   };
 }
-
